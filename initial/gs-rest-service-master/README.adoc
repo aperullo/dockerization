@@ -1,0 +1,40 @@
+# Example HTTP APP
+
+A service that will accept HTTP GET requests at:
+
+`http://localhost:8080/hello`
+
+and respond with:
+```
+{"id":1,"content":"Hello, World!"}
+```
+
+Can read some text read out of a config file, showing the value is there to use:
+`
+http://localhost:8080/read
+`
+
+and respond with:
+```
+{"id":1,"content":"Hello, World!"}
+```
+
+Can put some value into a database to show it can communicate with other containers:
+`
+http://localhost:8080/put?key=akey&val=avalue
+`
+
+and respond with:
+```
+{"id":1,"content":"Put avalue in akey"}
+```
+
+Can retrieve a value from a to show it can communicate with other containers. Will work even if container goes down because we are keeping the data in a volume.:
+`
+http://localhost:8080/get?key=akey
+`
+and respond with:
+```
+{"id":1,"content":"avalue"}
+```
+
