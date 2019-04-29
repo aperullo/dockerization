@@ -57,7 +57,7 @@ Containers are like disposible virtual machines. Therefore you need an OS image 
 We will need a **Dockerfile** which is basically a set of instructions for how to construct that image. 
 Inside of `/initial`, create a new file and name it `Dockerfile`.
 
-We don't want to manually have to install all the dependencies for our application, so instead we will use a premade image from dockerhub as a base and put our application on top of it. We
+We don't want to manually have to install all the dependencies for our application, so instead we will use a premade image from dockerhub as a base and put our application on top of it. We add 
 
 ```
 FROM openjdk:8-jre-alpine
@@ -65,7 +65,7 @@ FROM openjdk:8-jre-alpine
 
 The next line will copy the jar we built using `./gradlew clean build` into the container from our current folder context. So assuming we will run the `docker build` command from `/initial`:
 ```
-COPY gs-rest-service-master/build/libs/gs-rest-service-0.1.0.jar /app.jar
+COPY build/libs/gs-rest-service-0.1.0.jar /app.jar
 ```
 
 The next line is basically documentation for what ports others can interact with this container at.
@@ -81,7 +81,7 @@ ENTRYPOINT ["java","-jar","/app.jar"]
 By the end, `Dockerfile`:
 ```
 FROM openjdk:8-jre-alpine
-COPY gs-rest-service-master/build/libs/gs-rest-service-0.1.0.jar /app.jar
+COPY build/libs/gs-rest-service-0.1.0.jar /app.jar
 EXPOSE 8080
 ENTRYPOINT ["java","-jar","/app.jar"]
 ```
@@ -177,7 +177,7 @@ configs:
         file: ./application.properties
 ```
 
-When we bring our stack up, the app will already be set up to look for 
+When we bring our stack up, the app will already be set up to look for the config and load it
 ```
 > docker stack deploy -c docker-stack.yml dep
 Creating config dep_spring_config
@@ -203,7 +203,7 @@ sample-db:
     image: "redis:alpine"
 ```
 
-This isn't enough though, our app still can't communicate with our database, it doesn't know redis exists. We will connect them with a network rather than exposing a port. This may they can talk to each other, but nobody else can talk to our database.
+This isn't enough though, our app still can't communicate with our database, it doesn't know redis exists. We will connect them with a network rather than exposing a port. This way they can talk to each other, but nobody else can talk to our database.
 
 We add a network section to each service, and one to the top level. See the full docker-stack below for sections labelled "networks":
 
@@ -234,7 +234,7 @@ networks:
   db-net:
 ```
 
-When connected by a network containers contact each other using their service name; in our case *sample-service* will need to know it can reach our database service by using `sample-db`, so that it sends requests to `http://sample-db:6379`. We will need to change a few things to achieve this. 
+When connected by a network, containers contact each other using their service name; in our case *sample-service* will need to know it can reach our database service by using `sample-db`, so that it sends requests to `http://sample-db:6379`. We will need to change a few things to achieve this. 
 
 *NOTE: for the reason, service names should be dash-seperated, not underscore; underscores are not valid url chars.*
 
@@ -246,7 +246,7 @@ spring.redis.host=${REDIS_HOST}
 Then under the *sample-service* section in `docker-stack.yml` we add an environment section:
 ```
 environment:
-      REDIS_HOST: "sample-db"
+    REDIS_HOST: "sample-db"
 ```
 
 You can see we include some environment variables as configuration. We added some env vars for sample-service so it can know where to access the database. The advanced steps later will demonstrate how to not hardcode the values. 
@@ -298,27 +298,6 @@ Removing service dep_sample-db
 Removing service dep_sample-service
 Removing config dep_spring_config
 Removing network dep_db-net
-```
-
-TODO: delete these or put them somewhere for debugging
-```
-curl -X GET \
-  'http://localhost:8080/get?key=345' 
-
-curl -X GET "http://localhost:8080/get?key=345"
-```
-
-```
-curl -X POST \
-  http://localhost:8080/put \
-  -H 'cache-control: no-cache' \
-  -H 'content-type: application/json' \
-  -H 'postman-token: 6fcd5178-fb9d-0c5b-d440-540372331d35' \
-  -d '{
-        "key": "345"        
-}'
-
-curl -X POST "http://localhost:8080/put" -H 'content-type: application/json' -d '{ "key": "345" }'
 ```
 
 #### Step 4 (optional): Adding persistence 
@@ -427,59 +406,133 @@ Check the data is still there.
 {"key":"345"}
 ```
 
-WARNING: `docker stack rm dep` will delete the persistent volume.
+WARNING: `docker stack rm dep` will delete the persistent volume. To delete the volume manually `docker volume rm dep_redis-data`.
 
 ## Part 3 - Advanced Docker Steps and Best practices
 
 Everything up to this section is enough to get started with dev work. This section details some best practices for production, as well as timer-savers. These are standard things that the platform team does when building services.
 
-To enable some of these changes we will need to restructure our project slightly. Move the `Dockerfile` and `docker-stack.yml` inside `gs-rest-service-master`. Put `application.properties` into a folder called `config`
+To enable some of these changes a new structure is needed for the project. For this section use the contents of the `/advanced` folder. 
 
-TODO: get new final structure
-Final structure:
-```
-.
-└── gs-rest-service-master
-    ├── build.gradle
-    ├── config
-    │   └── application.properties
-    ├── Dockerfile
-    ├── docker-stack.yml
-    ├── gradle
-    │   └── ...
-    ├── gradlew
-    ├── gradlew.bat
-    ├── README.adoc
-    └── src
-        └── main
-            ├── ...
-```
+Broadly the changes are:
+1. An *app* folder which contains the raw java application
+2. A *deployment* folder which contains the properties and stack file organized into subfolders, with a place for .env
+3. A *constants* folder for gradle constants
+4. Seperate `build.gradle` files for each project
 
 #### Step 1. Gradle Constant Replacement
+
+section TODO
 
 #### Step 2. Gradle Docker plugin
 Running both `./gradlew build` and `docker build` is inefficient, we can stream line it by having gradle build the jar file, then also run our dockerfile. 
 
 To do with we need to add the docker plugin to our `build.gradle` and then point the plugin at our dockerfile.
 
+Open `advanced/app/build.gradle` and add the following sections
+
 Add the following sections, 
 ```
 plugins {
+    ...
     id 'com.palantir.docker' version '0.13.0'
 }
 
 apply plugin: 'com.palantir.docker'
 
-
 docker {
-    name "mine/sample-app"
+    name "sample-app"
     dockerfile file('Dockerfile')
+    copySpec.from("build/libs").into("libs")
 }
 
+build.dependsOn('docker')
+
+```
+
+We first specify the docker plugin to use and apply it. Our *docker* task says to run the dockerfile, copy some files to bring for the folder context, then name the result `sample-app`. 
+
+`advanced/app/build.gradle` now looks like:
+```
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.1.4.RELEASE'
+    id 'com.palantir.docker' version '0.13.0'
+}
+
+version '1.0-SNAPSHOT'
+
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-data-redis")
+    compile("org.springframework.boot:spring-boot-starter-actuator")
+}
+
+
+allprojects {
+    gradle.projectsEvaluated {
+        tasks.withType(JavaCompile) {
+            options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+        }
+    }
+}
+
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+docker {
+    name "sample-app"
+    dockerfile file('Dockerfile')
+    copySpec.from("build/libs").into("libs")
+}
+
+build.dependsOn('docker')
 ```
 
 #### Step 3. Env Var substitution-or-default moving env vars into and such into .env file
 substitution-or-default moving env vars into and such into .env file
+
+The last section covered build-time settings, if configuration needs to be made at deploy time, we can use environment variables. First we will add an evironment variable to our docker-stack.yml
+
+In `/advanced/deployments/stacks/docker-stack.yml`, under *sample-service* we will change a hardcoded value to an env var.
+```
+environment:
+   REDIS_HOST: "sample-db"
+```
+To
+```
+environment:
+      REDIS_HOST: "${REDIS_HOST:-sample-db}"
+```
+The syntax `${ENV:-default}` means "use the environment variable or this value if it doesn't exist.
+
+Next in `/advanced/deployments/environments` create a file called `dev.env` and write the following:
+```
+export REDIS_HOST=sample-db
+```
+
+From `/advanced`, run `./gradlew clean build` to make the changes part of the `/build`. Then we can load the contents. 
+```
+> source dev.env
+```
+
+We will deploy by running our `docker-stack.yml` through docker-compose before giving the output to docker stack. This is because docker-stack does not handle environment variable substitution by itself.
+
+```
+> docker stack deploy -c <(docker-compose -f **/build/docker-stack.yml config) dep
+Creating network dep_db-net
+Creating service dep_sample-db
+Creating service dep_sample-service
+
+```
+
+In our case, we are using the environment variable to tell the app where the redis service is, but there are many other possible uses.
 
 
 
