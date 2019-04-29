@@ -44,10 +44,11 @@ First thing we need is an application to dockerize. The `/initial` folder includ
 1. A `/hello` endpoint for testing we can connect to it
 2. A `/read` endpoint that reads a value out of config file proving the config works
 3. A `/put` endpoint that stores a key-pair in an external database showing it can connect to other containers.
-4. A `/get` endpoint that read a value out of the external database based on a key. Value should remain even after container is shut down proving volumes allow persisting data.
+4. A `/get` endpoint that reads a value out of the external database based on a key. Value should remain even after container is shut down proving volumes allow persisting data.
 
 First build the application by going to `initial/gs-rest-service-master` and running `./gradlew clean build`.
 
+TODO: THIS MAY NO LONGER WORK
 *Optional*: If you want to test the application. You can run `java -jar build/libs/gs-rest-service-0.1.0.jar` and then hit the endpoints as `curl "http://localhost:8080/hello"`.
 
 ### Step 1: Making a docker image
@@ -91,7 +92,6 @@ the `-t` tells docker what to call the resulting image and `.` tells it what fol
 > docker image ls
 REPOSITORY                     TAG                 IMAGE ID            CREATED             SIZE
 sample-app                     latest              24be1a1850e1        10 seconds ago      121MB
-
 ```
 
 ### Step 2: Making a Docker-stack
@@ -131,6 +131,7 @@ It may take up a few seconds to go from 0/1 to 1/1. Next try the endpoint to ver
 > docker service rm dep_sample-service
 dep_sample-service
 
+> 
 docker service ls
 ID                  NAME                MODE                REPLICAS            IMAGE               PORTS
 ```
@@ -430,10 +431,56 @@ WARNING: `docker stack rm dep` will delete the persistent volume.
 
 ## Part 3 - Advanced Docker Steps and Best practices
 
-gradle docker plugin
-gradle constant replacement
-var substitution-or-default
-moving env vars into and such into .env file
+Everything up to this section is enough to get started with dev work. This section details some best practices for production, as well as timer-savers. These are standard things that the platform team does when building services.
+
+To enable some of these changes we will need to restructure our project slightly. Move the `Dockerfile` and `docker-stack.yml` inside `gs-rest-service-master`. Put `application.properties` into a folder called `config`
+
+TODO: get new final structure
+Final structure:
+```
+.
+└── gs-rest-service-master
+    ├── build.gradle
+    ├── config
+    │   └── application.properties
+    ├── Dockerfile
+    ├── docker-stack.yml
+    ├── gradle
+    │   └── ...
+    ├── gradlew
+    ├── gradlew.bat
+    ├── README.adoc
+    └── src
+        └── main
+            ├── ...
+```
+
+#### Step 1. Gradle Constant Replacement
+
+#### Step 2. Gradle Docker plugin
+Running both `./gradlew build` and `docker build` is inefficient, we can stream line it by having gradle build the jar file, then also run our dockerfile. 
+
+To do with we need to add the docker plugin to our `build.gradle` and then point the plugin at our dockerfile.
+
+Add the following sections, 
+```
+plugins {
+    id 'com.palantir.docker' version '0.13.0'
+}
+
+apply plugin: 'com.palantir.docker'
+
+
+docker {
+    name "mine/sample-app"
+    dockerfile file('Dockerfile')
+}
+
+```
+
+#### Step 3. Env Var substitution-or-default moving env vars into and such into .env file
+substitution-or-default moving env vars into and such into .env file
+
 
 
 

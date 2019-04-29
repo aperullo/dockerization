@@ -7,6 +7,10 @@ buildscript {
     }
 }
 
+plugins {
+    id 'com.palantir.docker' version '0.13.0'
+}
+
 allprojects {
     gradle.projectsEvaluated {
         tasks.withType(JavaCompile) {
@@ -40,3 +44,10 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-actuator")
 }
 
+docker {
+    name "sample-app"
+    dockerfile file('Dockerfile')
+    copySpec.from("build/libs").into("libs")
+}
+
+build.dependsOn('docker')

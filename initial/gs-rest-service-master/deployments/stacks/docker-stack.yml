@@ -14,7 +14,7 @@ services:
           REDIS_HOST: "sample-db"
 
     sample-db:
-        image: "redis:alpine"
+        image: redis:alpine
         command: ["redis-server", "--appendonly", "yes"]
         networks:
           - db-net
@@ -23,7 +23,7 @@ services:
     
 configs:
     spring_config:
-        file: ./application.properties
+        file: ../configs/application.properties
 
 networks:
     db-net:
