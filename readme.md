@@ -2,6 +2,22 @@
 
 This document represents an introduction to docker, swarm, and dockerization of applications.
 
+Table of Contents
+=================
+
+  * [Part 1 - Designing an app for Dockerization](#part-1---designing-an-app-for-dockerization)
+  * [Part 2 - Dockerizing Practical Demonstration](#part-2---dockerizing-practical-demonstration)
+     * [Step 0: Prerequisite, have an app to dockerize](#step-0-prerequisite-have-an-app-to-dockerize)
+     * [Step 1: Making a docker image](#step-1-making-a-docker-image)
+     * [Step 2: Making a Docker-stack](#step-2-making-a-docker-stack)
+        * [Step 2a: Adding a config file](#step-2a-adding-a-config-file)
+     * [Step 3: The Second Service and Environment Variables](#step-3-the-second-service-and-environment-variables)
+     * [Step 4 (optional): Adding persistence](#step-4-optional-adding-persistence)
+  * [Part 3 - Advanced Docker Steps and Best practices](#part-3---advanced-docker-steps-and-best-practices)
+     * [Step 1. Gradle Constant Replacement](#step-1-gradle-constant-replacement)
+     * [Step 2. Gradle Docker plugin](#step-2-gradle-docker-plugin)
+     * [Step 3. Env Var substitution](#step-3-env-var-substitution)
+
 ## Part 1 - Designing an app for Dockerization
 
 Designing an application for use in docker swarm means making choices about both configuration and debugging of the app that leverage the nature of docker.
@@ -425,7 +441,7 @@ To delete the volume manually `docker volume rm dep_redis-data`.
 
 ## Part 3 - Advanced Docker Steps and Best practices
 
-Everything up to this section is enough to get started with dev work. This section details some best practices for production, as well as timer-savers. These are standard things that the platform team does when building services.
+Everything up to this section is enough to get started with dev work. This section details some best practices for production, as well as time-savers. These are standard things that the platform team does when building services.
 
 To enable some of these changes a new structure is needed for the project. For this section use the contents of the `/advanced` folder. 
 
@@ -575,12 +591,12 @@ task filterEnvironments(type: Copy) {
 </p>
 </details>
 
-
+You can verify it worked by building (`./gradlew build`) and navigating to `advanced/deployment/build/docker-stack.yml`; all instances of `@constant@` will have been replaced with the value from the imageConstants file. You can also run the stack and verify the application still works.
 
 ### Step 2. Gradle Docker plugin
 Running both `./gradlew build` and `docker build` is inefficient, we can stream line it by having gradle build the jar file, then also run our dockerfile. 
 
-To do with we need to add the docker plugin to our `build.gradle` and then point the plugin at our dockerfile.
+To do this we need to add the docker plugin to our `build.gradle` and then point the plugin at our dockerfile.
 
 Open `advanced/app/build.gradle` and add the following sections
 
@@ -643,6 +659,7 @@ allprojects {
 
 apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
+apply plugin: 'com.palantir.docker'
 
 docker {
     name "sample-app"
@@ -655,12 +672,29 @@ build.dependsOn('docker')
 </p>
 </details>
 
-### Step 3. Env Var substitution-or-default moving env vars into and such into .env file
-substitution-or-default moving env vars into and such into .env file
+If you already have built `sample-app` you can delete it; verify gradle now build the image running `./gradlew build`, and checking for the image's presence.
 
-The last section covered build-time settings, if configuration needs to be made at deploy time, we can use environment variables. First we will add an evironment variable to our docker-stack.yml
+```
+> docker image ls
+REPOSITORY                        TAG                 IMAGE ID            CREATED             SIZE
+sample-app                        latest              4522dc74cefb        About an hour ago   131MB
 
-In `/advanced/deployments/stacks/docker-stack.yml`, under *sample-service* we will change a hardcoded value to an env var.
+> docker image rm sample-app 
+Untagged: sample-app:latest
+
+> ./gradlew clean build
+...
+
+> docker image ls
+REPOSITORY                        TAG                 IMAGE ID            CREATED             SIZE
+sample-app                        latest              eb1210707573        3 seconds ago   131MB
+```
+
+### Step 3. Env Var substitution
+
+The last section covered build-time settings, if configuration needs to be made at deploy time, we can use environment variables. First we will add an evironment variable to our docker-stack.yml.
+
+In `/advanced/deployment/stacks/docker-stack.yml`, under *sample-service* we will change a hardcoded value to an env var.
 ```
 environment:
    REDIS_HOST: "sample-db"
@@ -670,30 +704,30 @@ To
 environment:
       REDIS_HOST: "${REDIS_HOST:-sample-db}"
 ```
-The syntax `${ENV:-default}` means "use the environment variable or this value if it doesn't exist.
+The syntax `${ENV:-default}` means "use the environment variable or this `default` if it doesn't exist".
 
-Next in `/advanced/deployments/environments` create a file called `dev.env` and write the following:
+Next in `/advanced/deployment/environments` create a file called `dev.env` and write the following:
 ```
 export REDIS_HOST=sample-db
 ```
 
-From `/advanced`, run `./gradlew clean build` to make the changes part of the `/build`. Then we can load the contents. 
+From `/advanced`, run `./gradlew clean build` to make the changes part of the `/build`. Then we can load the contents of the .env
 ```
-> source dev.env
+> source deployment/build/environments/dev.env
 ```
 
-We will deploy by running our `docker-stack.yml` through docker-compose before giving the output to docker stack. This is because docker-stack does not handle environment variable substitution by itself.
+We will deploy by running our `docker-stack.yml` through docker-compose before giving the output to docker-stack. This is because docker-stack does not handle environment variable substitution by itself.
 
 ```
-> docker stack deploy -c <(docker-compose -f **/build/docker-stack.yml config) dep
+> docker stack deploy -c <(docker-compose -f deployment/build/docker-stack.yml config) dep
 Creating network dep_db-net
 Creating service dep_sample-db
 Creating service dep_sample-service
-
 ```
 
 In our case, we are using the environment variable to tell the app where the redis service is, but there are many other possible uses.
 
+You can run the stack and verify the application still works by using curl on the endpoints `/put` and `/get`, see Part 2 - Step 3.
 
 
 
