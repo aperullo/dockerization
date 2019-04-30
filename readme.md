@@ -432,12 +432,150 @@ To enable some of these changes a new structure is needed for the project. For t
 Broadly the changes are:
 1. An *app* folder which contains the raw java application
 2. A *deployment* folder which contains the properties and stack file organized into subfolders, with a place for .env
-3. A *constants* folder for gradle constants
+3. A *buildSrc* folder for gradle constants
 4. Seperate `build.gradle` files for each project
 
 ### Step 1. Gradle Constant Replacement
 
-section TODO
+For some applications there may be repeated strings that can change at build time, rather than hard-coding these values, we can use Gradle constant replacement. Gradle constants are surrounded by `@` like `@imageName@`. For this example, the image names and versions in `/advanced/deployment/stacks/docker-stack.yml` have been swapped out for constants.
+
+```
+...
+sample-service:
+    image: @sampleAppImage@:@sampleAppVersion@
+...
+sample-db:
+    image: @redisImage@:@redisVersion@
+...
+```
+
+There are tasks set up which filter the files and replace constants, they can be seen in `/advanced/deployment/build.gradle`
+
+```
+def replacements = [
+                    sampleAppImage: 'sample-app',
+                    sampleAppVersion: 'latest',
+                    redisImage: 'redis',
+                    redisVersion: 'alpine'
+            ]
+
+task filter {
+    dependsOn 'filterStacks'
+    dependsOn 'filterConfigs'
+    dependsOn 'filterEnvironments'
+}
+
+task filterStacks(type: Copy) {
+    from 'stacks'
+    include '**/*'
+    into buildDir
+
+    project.logger.info("$buildDir")
+    
+    filter(ReplaceTokens, tokens: replacements)
+}
+
+task filterConfigs(type: Copy) {
+    from 'configs'
+    include '**/*'
+    into "$buildDir/configs"
+
+    filter(ReplaceTokens, tokens: replacements)
+}
+
+task filterEnvironments(type: Copy) {
+    from 'environments'
+    include '**/*'
+    into "$buildDir/environments"
+
+    filter(ReplaceTokens, tokens: replacements)
+}
+```
+
+The *replacements* dictionary shows the keys and the values to be swapped. Containing them in the `build.gradle` file is not ideal and they should be in their own constants file.
+
+The constants we will replace these with are in `/buildSrc/src/main/groovy/ImageConstants.groovy`.
+```
+class ImageConstants {
+
+    static final String sampleAppImage = "sample-app"
+    static final String sampleAppVersion = "latest"
+    static final String redisImage = "redis"
+    static final String redisVersion = "alpine"
+}
+```
+To enable these constants, edit `/advanced/deployment/build.gradle`, adding the following imports, and swapping out the *replacements* dictionary.
+
+```
+import static ImageConstants.sampleAppImage
+import static ImageConstants.sampleAppVersion
+import static ImageConstants.redisImage
+import static ImageConstants.redisVersion
+...
+
+def replacements = [
+                sampleAppImage: sampleAppImage,
+                sampleAppVersion: sampleAppVersion,
+                redisImage: redisImage,
+                redisVersion: redisVersion
+        ]
+```
+Full `build.gradle`:
+
+<details><summary>Click to expand</summary>
+<p>
+
+```
+import org.apache.tools.ant.filters.ReplaceTokens
+
+import static ImageConstants.sampleAppImage
+import static ImageConstants.sampleAppVersion
+import static ImageConstants.redisImage
+import static ImageConstants.redisVersion
+
+def replacements = [
+                    sampleAppImage: sampleAppImage,
+                    sampleAppVersion: sampleAppVersion,
+                    redisImage: redisImage,
+                    redisVersion: redisVersion
+            ]
+
+task filter {
+    dependsOn 'filterStacks'
+    dependsOn 'filterConfigs'
+    dependsOn 'filterEnvironments'
+}
+
+task filterStacks(type: Copy) {
+    from 'stacks'
+    include '**/*'
+    into buildDir
+
+    project.logger.info("$buildDir")
+    
+    filter(ReplaceTokens, tokens: replacements)
+}
+
+task filterConfigs(type: Copy) {
+    from 'configs'
+    include '**/*'
+    into "$buildDir/configs"
+
+    filter(ReplaceTokens, tokens: replacements)
+}
+
+task filterEnvironments(type: Copy) {
+    from 'environments'
+    include '**/*'
+    into "$buildDir/environments"
+
+    filter(ReplaceTokens, tokens: replacements)
+}
+```
+</p>
+</details>
+
+
 
 ### Step 2. Gradle Docker plugin
 Running both `./gradlew build` and `docker build` is inefficient, we can stream line it by having gradle build the jar file, then also run our dockerfile. 

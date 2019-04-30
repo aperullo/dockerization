@@ -1,22 +1,6 @@
 
 import org.apache.tools.ant.filters.ReplaceTokens
 
-//import constants.ImageConstants.sampleAppVersion
-//import constants.ImageConstants.redisImage
-//import constants.ImageConstants.redisVersion
-
-//dependencies {
-//    project(':constants')
-//}
-
-//def replacements = [
-//        sampleAppImage: sampleAppImage,
-//        sampleAppVersion: sampleAppVersion,
-//        redisImage: redisImage,
-//        redisVersion: redisVersion
-//]
-
-//Todo: get gradle import working
 def replacements = [
                     sampleAppImage: 'sample-app',
                     sampleAppVersion: 'latest',

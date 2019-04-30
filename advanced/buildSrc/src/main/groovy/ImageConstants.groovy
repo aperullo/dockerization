@@ -1,4 +1,3 @@
-package consts;
 
 class ImageConstants {
 

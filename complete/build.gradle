@@ -18,10 +18,10 @@ sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
 
-project(':constants') {
-    dependencies {
-        project(':deployment')
-    }
-}
+//project(':constants') {
+//    dependencies {
+//        project(':deployment')
+//    }
+//}
 
 build.dependsOn(':deployment:filter')
