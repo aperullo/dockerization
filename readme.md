@@ -30,12 +30,13 @@ The most important thing to keep in mind is that docker swarm is an orchestrator
     1. The application should start quickly. 
     2. If one copy goes down, docker will start redirecting traffic to the other copies (if present) while it makes another. The additional pressure could cause others to fail too. Minimize start-up to prevent cascades.
 
-2. No on-the-fly configuration and minimal config overall.
+2. Avoid on-the-fly configuration as much as possible, and have minimal config overall.
     1. As noted above, containers can be shortlived, so requiring manual configuration by a person is not an option.
     2. Applications should start with sane defaults that still allows the service to do something useful.
-    3. If your application requires configuration at all, it should be by way of environment variables, config files, or command line args.
-    4. Applications in containers should be *stateless* because a container isn't meant to be permanent, they can and do die off. Storing stateful data inside a container will cause issue. 
+    3. If your application requires configuration, it should be by way of environment variables, config files, or command line args.
+    4. Applications in containers must carefully consider how they will maintain state, because a container isn't meant to be permanent, they can and do die off. Stateful data inside a container will only last as long as that container's lifespan, if not explicitly saved by methods like those discussed in Part 2.
         1. If your application needs to store data, there are solutions. It can make use of an external database or use volumes to maintain state past the life-expectancy of a container.
+        2. On-the-fly/manual configuration is possible, but only practical if the program can inherit older configuration; for example if the config was available in a persisted-volume. 
 
 3. Have a useful amount of logging available at the default level (like *info*). 
     1. Ideally the app can be debugged just by looking at the log file. Either too little or too much output in the logs will make it harder to diagnose issues by just using `docker service logs` or `docker logs`. 
@@ -260,6 +261,8 @@ First change `application.properties` to be:
 spring.application.name=ourdemoapp
 spring.redis.host=${REDIS_HOST}
 ```
+(application.properties is a spring-boot specific file, not a docker one.)
+
 Then under the *sample-service* section in `docker-stack.yml` we add an environment section:
 ```
 environment:
@@ -728,9 +731,4 @@ Creating service dep_sample-service
 In our case, we are using the environment variable to tell the app where the redis service is, but there are many other possible uses.
 
 You can run the stack and verify the application still works by using curl on the endpoints `/put` and `/get`, see Part 2 - Step 3.
-
-
-
-
-
 
