@@ -20,11 +20,15 @@ Table of Contents
 
 ## Part 1 - Designing an app for Dockerization
 
-Designing an application for use in docker swarm means making choices about both configuration and debugging of the app that leverage the nature of docker.
+Docker is a tool for container creation and management. It allows you to create what are essentially disposable virtual machines, called containers. Containers are very minimal however, they contain only the most basic file system, plus an application. Docker swarm is a container orchestrator, which tracks containers and their status, while also allowing communication between them.
+
+The most important thing to keep in mind is this orchestrator, because your service will be running, possibly multiple copies of it, managed by the swarm. If the application fails and quits, the container will be destroyed and another copy of the app will take its place. 
+
+Designing an application for use in docker swarm means making design choices for the app that leverage the nature of docker.
 
 See [view container logs](https://docs.docker.com/v17.09/engine/admin/logging/view_container_logs/) for info on seeing and setting up your app to expose logs to `docker logs` and `docker service logs`
 
-The most important thing to keep in mind is that docker swarm is an orchestrator, meaning that your service will be running, possibly multiple copies of it, managed by the swarm. If the application fails and quits, the container will be destroyed and another copy of the app will take its place. 
+Some priniciples to keep in mind when designing or choosing an application to dockerize are the following:
 
 1. Start quickly.
     1. The application should start quickly. 
@@ -65,7 +69,7 @@ First build the application by going to `/initial` and running `./gradlew clean 
 *Optional*: If you want to test the application. You can run `java -jar build/libs/gs-rest-service-0.1.0.jar` and then hit the endpoints as `curl "http://localhost:8080/hello"`.
 
 ### Step 1: Making a docker image
-Containers are like disposible virtual machines. Therefore you need an OS image to use that includes your application.
+Containers are like disposible virtual machines. Therefore you need an image to use that includes your application.
 
 We will need a **Dockerfile** which is basically a set of instructions for how to construct that image. 
 Inside of `/initial`, create a new file and name it `Dockerfile`.
