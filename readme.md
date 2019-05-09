@@ -324,15 +324,34 @@ Creating service dep_sample-db
 > curl -X GET "http://localhost:8080/get?key=345"
 {"key":"345"}
 
+```
+As stated previously, containers are generally short-lived. With our current docker-stack, if the redis container goes down for any reason, it will lose all of its data. We'll demonstrate that.
+
+```
+> docker kill dep_sample-db.1.j3fb9yhpg64gmqi93zw3z5j7c
+dep_sample-db.1.j3fb9yhpg64gmqi93zw3z5j7c
+
+> docker service ls
+ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
+we8jonix8eq2        dep_sample-db        replicated          0/1                 redis:alpine
+ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+
+> docker service ls
+ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
+we8jonix8eq2        dep_sample-db        replicated          1/1                 redis:alpine
+ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+
+> curl -X GET "http://localhost:8080/get?key=345"
+*No response*
+
 > docker stack rm dep
 Removing service dep_sample-db
 Removing service dep_sample-service
 Removing config dep_spring_config
 Removing network dep_db-net
 ```
-
 ### Step 4 (optional): Adding persistence 
-As stated previously, containers are generally short-lived. With our current docker-stack, if the redis container goes down for any reason, it will lose all of its data. We will be giving it a place to store that data that survives after the container is gone, using a named volume. 
+In this section, we will be giving redis a place to store that data that survives after the container is gone, using a named volume. 
 
 Volumes are space docker allocates to containers to let them write files. They are usually anonymous, which means that only one container will get to use it, giving it the same lifespan as that container. By naming a volume and binding it to a service, docker can assign it to a new container if the old one dies.
 
