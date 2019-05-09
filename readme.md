@@ -28,7 +28,7 @@ Designing an application for use in docker swarm means making design choices for
 
 See [view container logs](https://docs.docker.com/v17.09/engine/admin/logging/view_container_logs/) for info on seeing and setting up your app to expose logs to `docker logs` and `docker service logs`
 
-Some priniciples to keep in mind when designing or choosing an application to dockerize are the following:
+Some principles to keep in mind when designing or choosing an application to dockerize are the following:
 
 1. Start quickly.
     1. The application should start quickly. 
