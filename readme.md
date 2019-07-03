@@ -159,9 +159,9 @@ Then in `docker-compose.yml` we add section under the `sample-service:` telling 
 
 ```
 volumes:
-          - type: bind
-            source: ./application.properties
-            target: /config/application.properties
+    - type: bind
+      source: ./application.properties
+      target: /config/application.properties
 ```
 
 `docker-compose.yml` now looks like:
@@ -192,6 +192,8 @@ Starting initial_sample-db_1      ... done
 Stopping initial_sample-service_1 ... done
 Removing initial_sample-service_1 ... done
 ```
+
+This type of volume is called a bind mount or bind volume. It fundamentally binds a part of the host file system to a part of the container's file system. We will come back to this slightly later when we learn about named volumes. 
 
 ### Step 3: The Second Service and Environment Variables
 
@@ -315,6 +317,10 @@ Removing network initial_db-net
 As stated previously, containers are generally short-lived. With our current docker-stack, if the redis container goes down for any reason, it will lose all of its data. We will be giving it a place to store that data that survives after the container is gone, using a named volume. 
 
 Volumes are space docker allocates to containers to let them write files. They are usually anonymous, which means that only one container will get to use it, giving it the same lifespan as that container. By naming a volume and binding it to a service, docker can assign it to a new container if the old one dies.
+
+There is one other type we have already talked about called bind volumes, which ties part of the host machine file system to that of the container. 
+
+The general use case for bind volumes is for loading configs. Using them makes orchestration much more difficult because it suddenly matters which host the container is running on, so prefer to use named volumes whenever possible.
 
 We add a volumes section to both the top level and the *sample-db* sections of our stack:
 ```
