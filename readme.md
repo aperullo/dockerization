@@ -179,7 +179,7 @@ services:
             target: /config/application.properties
 ```
 
-When we bring our stack up, the app will already be set up to look for the config and load it
+When we bring our compose up, the app will already be set up to look for the config and load it
 ```
 > docker-compose up -d
 Starting initial_sample-service_1 ... done
@@ -197,7 +197,7 @@ This type of volume is called a bind mount or bind volume. It fundamentally bind
 
 ### Step 3: The Second Service and Environment Variables
 
-In this stage we will introduce another service into the stack, a database using a premade docker image. 
+In this stage we will introduce another service into the compose, a database using a premade docker image. 
 
 In `docker-compose.yml` we add a new section under services:
 
@@ -208,7 +208,7 @@ sample-db:
 
 This isn't enough though, our app still can't communicate with our database, it doesn't know redis exists. We will connect them with a network rather than exposing a port. This way they can talk to each other, but nobody else can talk to our database.
 
-We add a networks section to each service, and one to the top level. See the full docker-stack below for sections labelled "networks":
+We add a networks section to each service, and one to the top level. See the full docker-compose below for sections labelled "networks":
 <details><summary>Click to expand</summary>
 <p>
 
@@ -314,15 +314,11 @@ Removing network initial_db-net
 ```
 
 ### Step 4 (optional): Adding persistence 
-As stated previously, containers are generally short-lived. With our current docker-stack, if the redis container goes down for any reason, it will lose all of its data. We will be giving it a place to store that data that survives after the container is gone, using a named volume. 
+As stated previously, containers are generally short-lived. With our current docker-compose, if the redis container goes down for any reason, it will lose all of its data. We will be giving it a place to store that data that survives after the container is gone, using a named volume. 
 
 Volumes are space docker allocates to containers to let them write files. They are usually anonymous, which means that only one container will get to use it, giving it the same lifespan as that container. By naming a volume and binding it to a service, docker can assign it to a new container if the old one dies.
 
-There is one other type we have already talked about called bind volumes, which ties part of the host machine file system to that of the container. 
-
-The general use case for bind volumes is for loading configs. Using them makes orchestration much more difficult because it suddenly matters which host the container is running on, so prefer to use named volumes whenever possible.
-
-We add a volumes section to both the top level and the *sample-db* sections of our stack:
+We add a volumes section to both the top level and the *sample-db* sections of our compose:
 ```
 sample-db:
     image: "redis:alpine"
@@ -339,7 +335,7 @@ volumes:
 ```
 We also needed to add some flags to the redis container to enable persistence using the `command:` section.
 
-We need our container to restart if it fails. To do so we add a section to each service `restart: always`
+We need our container to restart if it fails. To do so we add a section to each service `restart: always`.
 
 **docker-compose.yml**
 
@@ -383,7 +379,7 @@ volumes:
 </details>
 
 Now we will:
-1. Bring the stack up
+1. Bring the compose up
 2. Put some data in redis
 3. Kill the container
 4. Wait for the container to respawn
@@ -434,7 +430,7 @@ To enable some of these changes a new structure is needed for the project. For t
 
 Broadly the changes are:
 1. An *app* folder which contains the raw java application
-2. A *deployment* folder which contains the properties and stack file organized into subfolders, with a place for .env
+2. A *deployment* folder which contains the properties and compose file organized into subfolders, with a place for .env
 3. A *buildSrc* folder for gradle constants
 4. Seperate `build.gradle` files for each project
 
