@@ -1,6 +1,7 @@
 package hello;
 
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.Random;
 
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,8 @@ public class ResponseController {
     private static final String greeting = "Hello";
     private static final String template = "Put %s in %s";
     private final AtomicLong counter = new AtomicLong();
+    private Random rand = new Random();
+    private int id = rand.nextInt(9999);
     
     @Autowired
     private DataService dataService;
@@ -38,7 +41,12 @@ public class ResponseController {
                             greeting);
     }
 
-    //TODO
+    @RequestMapping("/id")
+    public Response getId() {
+        return new Response(counter.incrementAndGet(),
+                            "This container has ID " + Integer.toString(id));
+    }
+
     @RequestMapping("/read")
     public Response read() {
         return new Response(counter.incrementAndGet(),

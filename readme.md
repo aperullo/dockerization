@@ -11,8 +11,9 @@ Table of Contents
      * [Step 1: Making a docker image](#step-1-making-a-docker-image)
      * [Step 2: Making a Docker-stack](#step-2-making-a-docker-stack)
         * [Step 2a: Adding a config file](#step-2a-adding-a-config-file)
-     * [Step 3: The Second Service and Environment Variables](#step-3-the-second-service-and-environment-variables)
-     * [Step 4 (optional): Adding persistence](#step-4-optional-adding-persistence)
+     * [Step 3: Scaling the service](#step-3-scaling-the-service)
+     * [Step 4: The Second Service and Environment Variables](#step-4-the-second-service-and-environment-variables)
+     * [Step 5 (optional): Adding persistence](#step-5-optional-adding-persistence)
   * [Part 3 - Advanced Docker Steps and Best practices](#part-3---advanced-docker-steps-and-best-practices)
      * [Step 1. Gradle Constant Replacement](#step-1-gradle-constant-replacement)
      * [Step 2. Gradle Docker plugin](#step-2-gradle-docker-plugin)
@@ -60,9 +61,10 @@ To follow along with the tutorial use the contents of the `/initial` folder as y
 
 First thing we need is an application to dockerize. The `/initial` folder includes a simple springboot app with several endpoints.
 1. A `/hello` endpoint for testing connectivity
-2. A `/read` endpoint that reads a value out of a config file, proving the config works
-3. A `/put` endpoint that stores a key-pair in an external database showing it can connect to other containers
-4. A `/get` endpoint that reads a value out of the external database based on a key.
+1. A `/id` endpoint for testing container uniqueness.
+3. A `/read` endpoint that reads a value out of a config file, proving the config works
+4. A `/put` endpoint that stores a key-pair in an external database showing it can connect to other containers
+5. A `/get` endpoint that reads a value out of the external database based on a key.
 
 First build the application by going to `/initial` and running `./gradlew clean build`.
 
@@ -208,7 +210,63 @@ Removing service dep_sample-service
 Removing config dep_spring_config
 ```
 
-### Step 3: The Second Service and Environment Variables
+### Step 3: Scaling the service
+One of the benefits of an orchestrator is the ability to run multiple of your service without too much additional effort. This can be even be set up to be dynamic scaling of the service based on factors such as CPU load. 
+
+For simplicity in our case we will do it manually. Inside our `docker-stack.yml` we add a section under our sample service specifying the desired number of replicas.
+
+```
+deploy:
+    replicas: 3
+```
+
+Our file now looks like:
+
+```
+version: '3.7'
+services:
+    sample-service:
+        image: sample-app:latest
+        ports: 
+          - published: 8080
+            target: 8080
+            mode: "host"
+        configs:
+          - source: spring_config
+            target: /config/application.properties
+        deploy:
+            replicas: 3
+
+configs:
+    spring_config:
+        file: ./application.properties
+```
+
+We'll run our stack again
+```
+> docker stack deploy -c docker-stack.yml dep
+Creating config dep_spring_config
+Creating service dep_sample-service
+
+> docker service ls
+ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
+tm83rhe8dti1        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
+```
+
+Each instance of our app generates a random number which it uses as an id, with only 3 replicas it is very unlikely any will be repeats. We can use the `/id` endpoint of our app to see that indeed there are 3 different instances of the app all servicing our requests.
+
+```
+> curl "http://localhost:8080/id"
+{"id":4,"content":"This container has ID 817"}
+
+> curl "http://localhost:8080/id"
+{"id":4,"content":"This container has ID 373"}
+
+> curl "http://localhost:8080/id"
+{"id":4,"content":"This container has ID 849"}
+```
+
+### Step 4: The Second Service and Environment Variables
 
 In this stage we will introduce another service into the stack, a database using a premade docker image. 
 
@@ -236,6 +294,8 @@ services:
         configs:
           - source: spring_config
             target: /config/application.properties
+        deploy:
+            replicas: 3
         networks:
           - db-net
 
@@ -290,6 +350,8 @@ services:
         configs:
           - source: spring_config
             target: /config/application.properties
+        deploy:
+            replicas: 3
         networks:
           - db-net
         environment:
@@ -334,12 +396,12 @@ dep_sample-db.1.j3fb9yhpg64gmqi93zw3z5j7c
 > docker service ls
 ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
 we8jonix8eq2        dep_sample-db        replicated          0/1                 redis:alpine
-ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+ahx9ummoi3od        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
 
 > docker service ls
 ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
 we8jonix8eq2        dep_sample-db        replicated          1/1                 redis:alpine
-ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+ahx9ummoi3od        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
 
 > curl -X GET "http://localhost:8080/get?key=345"
 *No response*
@@ -350,7 +412,7 @@ Removing service dep_sample-service
 Removing config dep_spring_config
 Removing network dep_db-net
 ```
-### Step 4 (optional): Adding persistence 
+### Step 5 (optional): Adding persistence 
 In this section, we will be giving redis a place to store that data that survives after the container is gone, using a named volume. 
 
 Volumes are space docker allocates to containers to let them write files. They are usually anonymous, which means that only one container will get to use it, giving it the same lifespan as that container. By naming a volume and binding it to a service, docker can assign it to a new container if the old one dies.
@@ -388,6 +450,8 @@ services:
         configs:
           - source: spring_config
             target: /config/application.properties
+        deploy:
+            replicas: 3
         networks:
           - db-net
         environment:
@@ -432,7 +496,7 @@ Creating service dep_sample-db
 docker service ls
 ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
 we8jonix8eq2        dep_sample-db        replicated          1/1                 redis:alpine
-ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+ahx9ummoi3od        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
 
 > curl -X POST "http://localhost:8080/put" -H 'content-type: application/json' -d '{ "key": "345" }'
 
@@ -448,12 +512,12 @@ Your container name will be different, you can find it with `docker container ls
 > docker service ls
 ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
 we8jonix8eq2        dep_sample-db        replicated          0/1                 redis:alpine
-ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+ahx9ummoi3od        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
 
 > docker service ls
 ID                  NAME                 MODE                REPLICAS            IMAGE               PORTS
 we8jonix8eq2        dep_sample-db        replicated          1/1                 redis:alpine
-ahx9ummoi3od        dep_sample-service   replicated          1/1                 sample-app:latest   *:8080->8080/tcp
+ahx9ummoi3od        dep_sample-service   replicated          3/3                 sample-app:latest   *:8080->8080/tcp
 ```
 Check the data is still there.
 
