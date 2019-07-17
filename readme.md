@@ -213,7 +213,7 @@ Removing config dep_spring_config
 ### Step 3: Scaling the service
 One of the benefits of an orchestrator is the ability to run multiple of your service without too much additional effort. This can be even be set up to be dynamic scaling of the service based on factors such as CPU load. 
 
-For simplicity in our case we will do it manually. Inside our `docker-stack.yml` we add a section under our sample service specifying the desired number of replicas.
+For simplicity in our case we will do it manually. Inside our `docker-stack.yml` we add a section under our sample service specifying the desired number of replicas. We will also remove the `mode: host` section.
 
 ```
 deploy:
@@ -230,7 +230,6 @@ services:
         ports: 
           - published: 8080
             target: 8080
-            mode: "host"
         configs:
           - source: spring_config
             target: /config/application.properties
